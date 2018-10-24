@@ -2,6 +2,8 @@
 using UnityEngine.XR;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 public class WebCam_v3 : MonoBehaviour {
 
@@ -15,6 +17,7 @@ public class WebCam_v3 : MonoBehaviour {
     public Texture2D texture; //実際に録画したフレーム数
     WebCamTexture webcamTexture;
     [SerializeField] Camera target;
+    public SynchronizationContext context;
 
     // Use this for initialization
     void Start () {
@@ -42,6 +45,8 @@ public class WebCam_v3 : MonoBehaviour {
                 }
                 texture = new Texture2D(webcamTexture.width, webcamTexture.height);
 
+                context = SynchronizationContext.Current;
+
                 break;
             }
         }
@@ -53,7 +58,12 @@ public class WebCam_v3 : MonoBehaviour {
         {
             if (webcamTexture != null)
             {
-                this.StartCoroutine(this.recordTHEATA());
+                // this.StartCoroutine(this.recordTHEATA());
+
+                Task.Run(() =>
+                {
+                    recordThread();
+                });
             }
         } else if (Input.GetKey(KeyCode.Escape))
         {
@@ -104,6 +114,58 @@ public class WebCam_v3 : MonoBehaviour {
 
         print("End Reverse!!");
         yield return null;
+    }
+
+    // 別スレッド
+    private void recordThread()
+    {
+        //print("Start Recording!!");
+        float startTime = 0;
+        float nowTime = 0;
+
+        context.Post(__ =>
+        {
+            startTime = Time.time;
+        }, null);
+
+        System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+        System.Diagnostics.Stopwatch sw2 = new System.Diagnostics.Stopwatch();
+
+        sw.Start();
+
+        var wait = new WaitForSeconds(0.1f);
+        int recordFrame = 0; //実際に録画したフレーム数
+        while (nowTime - startTime < re_time)
+        {
+            webcamTexture.GetPixels32(data[recordFrame]);
+
+            context.Post(__ =>
+            {
+                dataList.Add(data[recordFrame]);
+                recordFrame += 1;
+                nowTime = Time.time;
+            }, null);
+        }
+        sw.Stop();
+
+        print("End Recording!!");
+        print("Start Reverse!!");
+
+        dataList.Reverse();
+
+        float sleepFrame = ((float)re_time / recordFrame) - (float)0.015;
+        var wait2 = new WaitForSeconds(sleepFrame);
+
+        sw2.Start();
+        for (int i = 0; i < recordFrame; i++)
+        {
+            texture.SetPixels32(dataList[i]);
+            material.mainTexture = texture;
+            texture.Apply();
+        }
+        sw2.Stop();
+
+        print("End Reverse!!");
     }
 
     Material GetTargetMaterial()
