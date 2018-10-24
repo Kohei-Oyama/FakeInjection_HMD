@@ -15,6 +15,7 @@ public class WebCam_v3 : MonoBehaviour {
     public Color32[][] data; //表示用のデータ格納配列
     public List<Color32[]> dataList; //表示用のデータ格納
     public Texture2D texture; //実際に録画したフレーム数
+    public Color32[] blackColor; //暗転用
     WebCamTexture webcamTexture;
     [SerializeField] Camera target;
     public SynchronizationContext context;
@@ -36,6 +37,7 @@ public class WebCam_v3 : MonoBehaviour {
                 webcamTexture = new WebCamTexture(camname, Width, Height, FPS);
                 material.mainTexture = webcamTexture;
                 webcamTexture.Play();
+                //this.StartCoroutine(this.WebcamPlay());
 
                 // 録画フレームは多めに確保
                 data = new Color32[FPS * re_time * 5][];
@@ -46,6 +48,12 @@ public class WebCam_v3 : MonoBehaviour {
                 texture = new Texture2D(webcamTexture.width, webcamTexture.height);
 
                 context = SynchronizationContext.Current;
+
+                blackColor = new Color32[webcamTexture.width * webcamTexture.height];
+                for (var k = 0; k < blackColor.Length; k++)
+                {
+                    blackColor[k] = Color.black;
+                }
 
                 break;
             }
@@ -58,17 +66,20 @@ public class WebCam_v3 : MonoBehaviour {
         {
             if (webcamTexture != null)
             {
-                // this.StartCoroutine(this.recordTHEATA());
-
-                Task.Run(() =>
-                {
-                    recordThread();
-                });
+                this.StartCoroutine(this.recordTHEATA());
             }
         } else if (Input.GetKey(KeyCode.Escape))
         {
             Application.Quit();
         }
+    }
+
+    // THETAの再生をコルーチンに
+    private IEnumerator WebcamPlay()
+    {
+        var wait = new WaitForSeconds(10f);
+        webcamTexture.Play();
+        yield return wait;
     }
 
     // 録画と逆再生
@@ -112,60 +123,12 @@ public class WebCam_v3 : MonoBehaviour {
         }
         sw2.Stop();
 
+        texture.SetPixels32(blackColor);
+        material.mainTexture = texture;
+        texture.Apply();
+
         print("End Reverse!!");
         yield return null;
-    }
-
-    // 別スレッド
-    private void recordThread()
-    {
-        //print("Start Recording!!");
-        float startTime = 0;
-        float nowTime = 0;
-
-        context.Post(__ =>
-        {
-            startTime = Time.time;
-        }, null);
-
-        System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-        System.Diagnostics.Stopwatch sw2 = new System.Diagnostics.Stopwatch();
-
-        sw.Start();
-
-        var wait = new WaitForSeconds(0.1f);
-        int recordFrame = 0; //実際に録画したフレーム数
-        while (nowTime - startTime < re_time)
-        {
-            webcamTexture.GetPixels32(data[recordFrame]);
-
-            context.Post(__ =>
-            {
-                dataList.Add(data[recordFrame]);
-                recordFrame += 1;
-                nowTime = Time.time;
-            }, null);
-        }
-        sw.Stop();
-
-        print("End Recording!!");
-        print("Start Reverse!!");
-
-        dataList.Reverse();
-
-        float sleepFrame = ((float)re_time / recordFrame) - (float)0.015;
-        var wait2 = new WaitForSeconds(sleepFrame);
-
-        sw2.Start();
-        for (int i = 0; i < recordFrame; i++)
-        {
-            texture.SetPixels32(dataList[i]);
-            material.mainTexture = texture;
-            texture.Apply();
-        }
-        sw2.Stop();
-
-        print("End Reverse!!");
     }
 
     Material GetTargetMaterial()
