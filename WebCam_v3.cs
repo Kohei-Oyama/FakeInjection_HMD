@@ -68,10 +68,21 @@ public class WebCam_v3 : MonoBehaviour {
             {
                 this.StartCoroutine(this.recordTHEATA());
             }
-        } else if (Input.GetKey(KeyCode.Escape))
+        }
+        else if (Input.GetKey(KeyCode.K))
+        {
+            OnCollisionEnter();
+        }
+        else if (Input.GetKey(KeyCode.Escape))
         {
             Application.Quit();
         }
+    }
+
+    void OnCollisionEnter()
+    {
+        AudioSource audioSource = gameObject.GetComponent<AudioSource>();
+        audioSource.Play();
     }
 
     // THETAの再生をコルーチンに
@@ -106,6 +117,7 @@ public class WebCam_v3 : MonoBehaviour {
         sw.Stop();
 
         print("End Recording!!");
+        OnCollisionEnter();
         print("Start Reverse!!");
 
         dataList.Reverse();
