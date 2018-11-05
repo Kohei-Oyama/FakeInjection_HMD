@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Diagnostics;
 
 public class WebCam_v3 : MonoBehaviour {
 
@@ -16,6 +17,8 @@ public class WebCam_v3 : MonoBehaviour {
     public List<Color32[]> dataList; //表示用のデータ格納
     public Texture2D texture; //実際に録画したフレーム数
     public Color32[] blackColor; //暗転用
+    public float nowTime;
+    public Stopwatch sw;
     WebCamTexture webcamTexture;
     [SerializeField] Camera target;
     public SynchronizationContext context;
@@ -67,11 +70,12 @@ public class WebCam_v3 : MonoBehaviour {
             if (webcamTexture != null)
             {
                 this.StartCoroutine(this.recordTHEATA());
+                this.StartCoroutine(this.timeRecord());
             }
         }
         else if (Input.GetKey(KeyCode.K))
         {
-            OnCollisionEnter();
+            OnSound();
         }
         else if (Input.GetKey(KeyCode.Escape))
         {
@@ -79,7 +83,7 @@ public class WebCam_v3 : MonoBehaviour {
         }
     }
 
-    void OnCollisionEnter()
+    void OnSound()
     {
         AudioSource audioSource = gameObject.GetComponent<AudioSource>();
         audioSource.Play();
@@ -93,16 +97,26 @@ public class WebCam_v3 : MonoBehaviour {
         yield return wait;
     }
 
+    private IEnumerator timeRecord()
+    {
+        Stopwatch sw = new Stopwatch();
+        sw.Start();
+        while (true)
+        {
+            nowTime = (float)sw.Elapsed.TotalSeconds;
+            yield return (0.001f);
+        }
+    }
+
     // 録画と逆再生
     private IEnumerator recordTHEATA()
     {
         //print("Start Recording!!");
         float startTime = Time.time;
 
-        System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-        System.Diagnostics.Stopwatch sw2 = new System.Diagnostics.Stopwatch();
-
-        sw.Start();
+        Invoke("OnSound", 7f);
+        Invoke("OnSound", 20f);
+        Invoke("OnSound", 33f);
 
         var wait = new WaitForSeconds(0.1f);
         int recordFrame = 0; //実際に録画したフレーム数
@@ -114,10 +128,7 @@ public class WebCam_v3 : MonoBehaviour {
             recordFrame += 1;
             yield return wait;
         }
-        sw.Stop();
 
-        print("End Recording!!");
-        OnCollisionEnter();
         print("Start Reverse!!");
 
         dataList.Reverse();
@@ -125,7 +136,6 @@ public class WebCam_v3 : MonoBehaviour {
         float sleepFrame = ((float)re_time / recordFrame) - (float)0.015;
         var wait2 = new WaitForSeconds(sleepFrame);
 
-        sw2.Start();
         for (int i = 0; i < recordFrame; i++)
         {
             texture.SetPixels32(dataList[i]);
@@ -133,7 +143,6 @@ public class WebCam_v3 : MonoBehaviour {
             texture.Apply();
             yield return wait2;
         }
-        sw2.Stop();
 
         texture.SetPixels32(blackColor);
         material.mainTexture = texture;
@@ -155,7 +164,7 @@ public class WebCam_v3 : MonoBehaviour {
         {
             return renderer.material;
         }
-        Debug.LogError("Renderer/Skyboxコンポーネントがありません。");
+        UnityEngine.Debug.LogError("Renderer/Skyboxコンポーネントがありません。");
         return null;
     }
 
